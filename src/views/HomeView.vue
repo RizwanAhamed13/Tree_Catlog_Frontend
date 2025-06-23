@@ -90,13 +90,11 @@
           <h3 class="text-white text-center mb-3">Search Results</h3>
           <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             <div v-for="tree in filteredTrees" :key="tree.id" class="col">
-              <div class="card shadow-sm">
+              <div class="card shadow-sm" @click="goToTreeDetails(tree.id)">
                 <div class="card-body">
                   <h4 class="card-title h5">{{ tree.name }}</h4>
                   <p class="card-text text-muted">Species: {{ tree.species }}</p>
-                  <p class="card-text">
-                    Average Rating: {{ getAverageRating(tree) }}
-                  </p>
+                  <p class="card-text">Average Rating: {{ getAverageRating(tree) }}</p>
                 </div>
               </div>
             </div>
@@ -106,7 +104,7 @@
         <!-- Trees Display -->
         <div v-if="!nameFilter" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
           <div v-for="tree in trees" :key="tree.id" class="col">
-            <div class="card h-100 shadow-sm" :style="tree.css_style || ''">
+            <div class="card h-100 shadow-sm" :style="tree.css_style || ''" @click="goToTreeDetails(tree.id)">
               <img
                 v-if="tree.image_url"
                 :src="tree.image_url"
@@ -129,18 +127,13 @@
                       {{ r }} Star{{ r > 1 ? 's' : '' }}
                     </option>
                   </select>
-                  <p class="text-muted mt-2">
-                    Average: {{ getAverageRating(tree) }}
-                  </p>
+                  <p class="text-muted mt-2">Average: {{ getAverageRating(tree) }}</p>
                 </div>
                 <!-- QR Code -->
                 <div class="mt-3 text-center">
                   <h3 class="h6">Scan or Download QR Code</h3>
                   <qrcode-vue :value="getTreeUrl(tree.id)" :size="100" level="H" :ref="'qrcode-' + tree.id" />
-                  <button
-                    @click="downloadQRCode(tree.id, tree.name)"
-                    class="btn btn-sm leaf-btn text-white mt-2"
-                  >
+                  <button @click="downloadQRCode(tree.id, tree.name)" class="btn btn-sm leaf-btn text-white mt-2">
                     Download QR Code
                   </button>
                 </div>
@@ -196,13 +189,18 @@
 import axios from 'axios';
 import ErrorBoundary from '../components/ErrorBoundary.vue';
 import QrcodeVue from 'qrcode.vue';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'HomeView',
   components: { ErrorBoundary, QrcodeVue },
+  setup() {
+    const router = useRouter();
+    return { router };
+  },
   data() {
     return {
-      trees: [], // Initialize as empty array to avoid undefined errors
+      trees: [],
       form: {
         name: '',
         species: '',
@@ -226,7 +224,7 @@ export default {
         .sort((a, b) => {
           const avgA = this.getAverageRating(a);
           const avgB = this.getAverageRating(b);
-          return avgB - avgA; // Descending order
+          return avgB - avgA;
         });
     },
   },
@@ -252,7 +250,7 @@ export default {
         this.error = null;
       } catch (error) {
         console.error('Error fetching trees:', error);
-        this.trees = []; // Reset to empty array on error
+        this.trees = [];
         this.error = 'Failed to load trees. Please check the backend connection.';
       }
     },
@@ -260,12 +258,13 @@ export default {
       try {
         const formData = new FormData();
         formData.append('image', file);
-        const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/upload-image`, formData, {
+        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/upload-image`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        return data.url;
+        console.log('Image upload response:', response.data);
+        return response.data.url;
       } catch (error) {
-        console.error('Image upload error:', error);
+        console.error('Image upload error:', error.response ? error.response.data : error.message);
         this.error = 'Failed to upload image.';
         return null;
       }
@@ -273,16 +272,19 @@ export default {
     async handleSubmit() {
       try {
         const imageUrl = this.form.image ? await this.handleImageUpload(this.form.image) : null;
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/trees`, {
+        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/trees`, {
           ...this.form,
           image: imageUrl,
+        }, {
+          headers: { 'Content-Type': 'application/json' },
         });
+        console.log('Submit response:', response.data);
         await this.fetchTrees();
         this.form = { name: '', species: '', description: '', image: null, css_style: '', student_id: '' };
         this.error = null;
       } catch (error) {
-        console.error('Submit error:', error);
-        this.error = 'Failed to add tree.';
+        console.error('Submit error:', error.response ? error.response.data : error.message);
+        this.error = error.response?.status === 404 ? 'Backend endpoint not found.' : 'Failed to add tree.';
       }
     },
     async handleRating(treeId, studentId, value) {
@@ -303,12 +305,25 @@ export default {
       return `${window.location.origin}/tree/${treeId}`;
     },
     downloadQRCode(treeId, treeName) {
-      const qrCanvas = this.$refs[`qrcode-${treeId}`][0].$el.querySelector('canvas');
-      const qrImage = qrCanvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = qrImage;
-      link.download = `qr-code-${treeName.replace(/\s+/g, '-')}.png`;
-      link.click();
+      try {
+        const qrRef = this.$refs[`qrcode-${treeId}`];
+        if (!qrRef || !qrRef.$el || !qrRef.$el.querySelector) {
+          throw new Error('QR code reference not found or invalid');
+        }
+        const qrCanvas = qrRef.$el.querySelector('canvas');
+        if (!qrCanvas) throw new Error('QR code canvas not found');
+        const qrImage = qrCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = qrImage;
+        link.download = `qr-code-${treeName.replace(/\s+/g, '-')}.png`;
+        link.click();
+      } catch (error) {
+        console.error('QR download error:', error);
+        this.error = 'Failed to download QR code. Please try again.';
+      }
+    },
+    goToTreeDetails(treeId) {
+      this.router.push(`/tree/${treeId}`);
     },
     showDeletePrompt(treeId, treeName) {
       this.deleteTreeId = treeId;
@@ -331,7 +346,7 @@ export default {
         this.cancelDelete();
       } catch (error) {
         console.error('Delete error:', error.response ? error.response.data : error.message);
-        this.error = error.response?.status === 405 ? 'Method not allowed. Check backend configuration.' : 'Failed to delete tree.';
+        this.error = error.response?.status === 405 ? 'Method not allowed. Check backend.' : 'Failed to delete tree.';
       }
     },
   },
