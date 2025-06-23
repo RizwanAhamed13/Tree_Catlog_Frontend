@@ -77,6 +77,11 @@
           </div>
         </form>
 
+        <!-- No Trees Message -->
+        <p v-if="trees && trees.length === 0 && !error && !nameFilter" class="text-center text-white">
+          No trees yet. Add one above!
+        </p>
+
         <!-- Search Results -->
         <div v-if="nameFilter && filteredTrees.length === 0" class="text-center text-white mb-4">
           No trees match the search.
@@ -99,7 +104,6 @@
         </div>
 
         <!-- Trees Display -->
-        <p v-if="!nameFilter && trees.length === 0 && !error" class="text-center text-white">No trees yet. Add one above!</p>
         <div v-if="!nameFilter" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
           <div v-for="tree in trees" :key="tree.id" class="col">
             <div class="card h-100 shadow-sm" :style="tree.css_style || ''">
@@ -198,7 +202,7 @@ export default {
   components: { ErrorBoundary, QrcodeVue },
   data() {
     return {
-      trees: [],
+      trees: [], // Initialize as empty array to avoid undefined errors
       form: {
         name: '',
         species: '',
@@ -242,12 +246,13 @@ export default {
     },
     async fetchTrees() {
       try {
-        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/trees`);
-        console.log('Fetched trees:', data);
-        this.trees = data ? data : [];
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/trees`);
+        console.log('Fetched trees response:', response.data);
+        this.trees = Array.isArray(response.data) ? response.data : [];
         this.error = null;
       } catch (error) {
         console.error('Error fetching trees:', error);
+        this.trees = []; // Reset to empty array on error
         this.error = 'Failed to load trees. Please check the backend connection.';
       }
     },
@@ -317,15 +322,16 @@ export default {
     },
     async confirmDelete(treeId) {
       try {
-        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/trees/${treeId}`, {
+        const response = await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/trees/${treeId}`, {
           headers: { 'x-admin-key': this.adminKey },
         });
+        console.log('Delete response:', response);
         await this.fetchTrees();
         this.error = null;
         this.cancelDelete();
       } catch (error) {
-        console.error('Delete error:', error);
-        this.error = error.response?.status === 403 ? 'Invalid admin key' : error.response?.data?.error || 'Failed to delete tree.';
+        console.error('Delete error:', error.response ? error.response.data : error.message);
+        this.error = error.response?.status === 405 ? 'Method not allowed. Check backend configuration.' : 'Failed to delete tree.';
       }
     },
   },
