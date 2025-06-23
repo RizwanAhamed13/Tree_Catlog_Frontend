@@ -90,7 +90,7 @@
                   <h4 class="card-title h5">{{ tree.name }}</h4>
                   <p class="card-text text-muted">Species: {{ tree.species }}</p>
                   <p class="card-text">
-                    Average Rating: {{ tree.ratings.length > 0 ? (tree.ratings.reduce((sum, r) => sum + r.rating, 0) / tree.ratings.length).toFixed(1) : 'No ratings yet' }}
+                    Average Rating: {{ getAverageRating(tree) }}
                   </p>
                 </div>
               </div>
@@ -102,7 +102,7 @@
         <p v-if="!nameFilter && trees.length === 0 && !error" class="text-center text-white">No trees yet. Add one above!</p>
         <div v-if="!nameFilter" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
           <div v-for="tree in trees" :key="tree.id" class="col">
-            <div class="card h-100 shadow-sm" :style="tree.css_style">
+            <div class="card h-100 shadow-sm" :style="tree.css_style || ''">
               <img
                 v-if="tree.image_url"
                 :src="tree.image_url"
@@ -126,7 +126,7 @@
                     </option>
                   </select>
                   <p class="text-muted mt-2">
-                    Average: {{ tree.ratings.length > 0 ? (tree.ratings.reduce((sum, r) => sum + r.rating, 0) / tree.ratings.length).toFixed(1) : 'No ratings yet' }}
+                    Average: {{ getAverageRating(tree) }}
                   </p>
                 </div>
                 <!-- QR Code -->
@@ -218,15 +218,21 @@ export default {
       if (!this.nameFilter) return [];
       const filter = this.nameFilter.toLowerCase().trim();
       return this.trees
-        .filter(tree => tree.name.toLowerCase().includes(filter))
+        .filter(tree => tree && tree.name && tree.name.toLowerCase().includes(filter))
         .sort((a, b) => {
-          const avgA = a.ratings.length ? a.ratings.reduce((sum, r) => sum + r.rating, 0) / a.ratings.length : 0;
-          const avgB = b.ratings.length ? b.ratings.reduce((sum, r) => sum + r.rating, 0) / b.ratings.length : 0;
+          const avgA = this.getAverageRating(a);
+          const avgB = this.getAverageRating(b);
           return avgB - avgA; // Descending order
         });
     },
   },
   methods: {
+    getAverageRating(tree) {
+      if (!tree || !tree.ratings || !Array.isArray(tree.ratings) || tree.ratings.length === 0) {
+        return 'No ratings yet';
+      }
+      return (tree.ratings.reduce((sum, r) => sum + r.rating, 0) / tree.ratings.length).toFixed(1);
+    },
     handleFileChange(file) {
       if (file && file.size > 5 * 1024 * 1024) {
         this.error = 'Image size exceeds 5MB. Please choose a smaller file.';
@@ -238,7 +244,7 @@ export default {
       try {
         const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/trees`);
         console.log('Fetched trees:', data);
-        this.trees = data || [];
+        this.trees = data ? data : [];
         this.error = null;
       } catch (error) {
         console.error('Error fetching trees:', error);
