@@ -11,7 +11,7 @@
           <div v-if="loading" class="text-center text-white">Loading...</div>
   
           <!-- Tree Details -->
-          <div v-else-if="tree" class="card shadow-sm mx-auto" :style="tree.css_style" style="max-width: 600px;">
+          <div v-else-if="tree" class="card shadow-sm mx-auto" :style="tree.css_style || ''" style="max-width: 600px;">
             <img
               v-if="tree.image_url"
               :src="tree.image_url"
@@ -35,7 +35,7 @@
                   </option>
                 </select>
                 <p class="text-muted mt-2">
-                  Average: {{ tree.ratings.length > 0 ? (tree.ratings.reduce((sum, r) => sum + r.rating, 0) / tree.ratings.length).toFixed(1) : 'No ratings yet' }}
+                  Average: {{ getAverageRating }}
                 </p>
               </div>
               <!-- QR Code -->
@@ -71,7 +71,7 @@
     components: { ErrorBoundary, QrcodeVue },
     data() {
       return {
-        tree: null,
+        tree: null, // Initialize as null to handle loading state
         form: {
           student_id: '',
         },
@@ -79,12 +79,20 @@
         loading: true,
       };
     },
+    computed: {
+      getAverageRating() {
+        if (!this.tree || !this.tree.ratings || !Array.isArray(this.tree.ratings) || this.tree.ratings.length === 0) {
+          return 'No ratings yet';
+        }
+        return (this.tree.ratings.reduce((sum, r) => sum + r.rating, 0) / this.tree.ratings.length).toFixed(1);
+      },
+    },
     methods: {
       async fetchTree() {
         try {
           const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/trees/${this.$route.params.id}`);
           console.log('Fetched tree:', data);
-          this.tree = data;
+          this.tree = data || {}; // Default to empty object if data is undefined
           this.error = null;
         } catch (error) {
           console.error('Error fetching tree:', error);
