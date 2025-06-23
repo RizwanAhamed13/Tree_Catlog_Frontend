@@ -90,11 +90,16 @@
           <h3 class="text-white text-center mb-3">Search Results</h3>
           <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             <div v-for="tree in filteredTrees" :key="tree.id" class="col">
-              <div class="card shadow-sm" @click="goToTreeDetails(tree.id)">
-                <div class="card-body">
+              <div class="card shadow-sm">
+                <div class="card-body" @click="goToTreeDetails(tree.id)">
                   <h4 class="card-title h5">{{ tree.name }}</h4>
                   <p class="card-text text-muted">Species: {{ tree.species }}</p>
                   <p class="card-text">Average Rating: {{ getAverageRating(tree) }}</p>
+                </div>
+                <div class="card-footer text-center p-2">
+                  <button @click.stop="showDeletePrompt(tree.id, tree.name)" class="btn btn-sm btn-outline-danger">
+                    Delete Tree
+                  </button>
                 </div>
               </div>
             </div>
@@ -104,7 +109,7 @@
         <!-- Trees Display -->
         <div v-if="!nameFilter" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
           <div v-for="tree in trees" :key="tree.id" class="col">
-            <div class="card h-100 shadow-sm" :style="tree.css_style || ''" @click="goToTreeDetails(tree.id)">
+            <div class="card h-100 shadow-sm" :style="tree.css_style || ''">
               <img
                 v-if="tree.image_url"
                 :src="tree.image_url"
@@ -112,7 +117,7 @@
                 class="card-img-top"
                 style="height: 200px; object-fit: cover;"
               />
-              <div class="card-body">
+              <div class="card-body" @click="goToTreeDetails(tree.id)">
                 <h2 class="card-title h5">{{ tree.name }}</h2>
                 <p class="card-text text-muted">Species: {{ tree.species }}</p>
                 <p class="card-text">{{ tree.description || 'No description' }}</p>
@@ -137,45 +142,42 @@
                     Download QR Code
                   </button>
                 </div>
-                <!-- Delete Button -->
-                <div class="mt-3 text-center">
-                  <button
-                    @click="showDeletePrompt(tree.id, tree.name)"
-                    class="btn btn-sm btn-outline-danger"
-                  >
-                    Delete Tree
-                  </button>
-                </div>
-                <!-- Delete Modal -->
-                <div v-if="deleteTreeId === tree.id" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
-                  <div class="modal-dialog">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h5 class="modal-title">Delete Tree: {{ tree.name }}</h5>
-                        <button @click="cancelDelete" class="btn-close"></button>
-                      </div>
-                      <div class="modal-body">
-                        <p>Enter admin key to confirm deletion:</p>
-                        <input
-                          v-model="adminKey"
-                          type="password"
-                          placeholder="Admin Key"
-                          class="form-control"
-                        />
-                      </div>
-                      <div class="modal-footer">
-                        <button @click="cancelDelete" class="btn btn-secondary">Cancel</button>
-                        <button
-                          @click="confirmDelete(tree.id)"
-                          class="btn btn-danger"
-                          :disabled="!adminKey"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              </div>
+              <div class="card-footer text-center p-2">
+                <button @click.stop="showDeletePrompt(tree.id, tree.name)" class="btn btn-sm btn-outline-danger">
+                  Delete Tree
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div v-if="deleteTreeId" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Delete Tree: {{ deleteTreeName }}</h5>
+                <button @click="cancelDelete" class="btn-close"></button>
+              </div>
+              <div class="modal-body">
+                <p>Enter admin key to confirm deletion:</p>
+                <input
+                  v-model="adminKey"
+                  type="password"
+                  placeholder="Admin Key"
+                  class="form-control"
+                />
+              </div>
+              <div class="modal-footer">
+                <button @click="cancelDelete" class="btn btn-secondary">Cancel</button>
+                <button
+                  @click="confirmDelete(deleteTreeId)"
+                  class="btn btn-danger"
+                  :disabled="!adminKey"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           </div>
@@ -212,6 +214,7 @@ export default {
       nameFilter: '',
       error: null,
       deleteTreeId: null,
+      deleteTreeName: null,
       adminKey: '',
     };
   },
