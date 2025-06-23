@@ -1,0 +1,23 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f8f9fa;
+}
+
+.forest-bg {
+  background: linear-gradient(to bottom, #2F4F4F, #e5e7eb);
+}
+
+.leaf-btn {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
+}
+
+.leaf-btn:hover {
+  background-color: #45a049;
+  border-color: #45a049;
+}
+
+.bark-border {
+  border-color: #8B4513;
+}
